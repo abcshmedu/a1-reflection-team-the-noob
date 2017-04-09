@@ -6,88 +6,93 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
+ * Renderer class. Renders object's fields and methods, which are marked with
+ * RenderMe annotation.
  * 
  * @author Dmitry Dorodnov
  *
  */
 public class Renderer {
 
-	private Object o;
+  private Object elementToRender;
 
-	public Renderer(Object o) {
-		this.o = o;
-	}
+  public Renderer(Object o) {
+    this.elementToRender = o;
+  }
 
-	public String render() throws IllegalArgumentException, IllegalAccessException {
-		StringBuilder result = new StringBuilder("Instance of ");
-		
+  /**
+   * Renders objects fields and methods.
+   * @return String representation of object's fields and methods
+   */
+  public String render() {
+    StringBuilder result = new StringBuilder("Instance of ");
 
-		Class<?> cut = this.o.getClass();
-		
-		result.append(cut.getName());
-		result.append(":\n");
-		
-		Field[] fields = cut.getDeclaredFields();
+    Class<?> cut = this.elementToRender.getClass();
 
-		for (Field f : fields) {
-			RenderMe a = f.getAnnotation(edu.hm.renderer.RenderMe.class);
-			if (a != null) {				
-				f.setAccessible(true);
-				
-				String className = a.with();
-				if (!"".equals(className)) {
-					try {
-						Class<?> tuc = Class.forName(a.with());
-						if (tuc != null) {
-							Method method = tuc.getDeclaredMethod("render", Field.class, Object.class);
-							if (method != null) {
-								result.append(method.invoke(tuc, f, this.o));
-							}
-						}
-					} catch (ClassNotFoundException | NoSuchMethodException | SecurityException | InvocationTargetException e) {
-						e.printStackTrace();
-					}
-				} else {
-					result.append(f.getName())
-					.append(" (Type ")
-					.append((f.getType()).getName())
-					.append("): ")
-					.append((f.get(this.o)).toString())
-					.append("\n");
-				}				
-			}
-		}
-		
-		Method[] methods = cut.getDeclaredMethods();
-		for (Method m : methods) {
-			RenderMe rm = m.getAnnotation(edu.hm.renderer.RenderMe.class);
-			if (rm != null) {				
-				m.setAccessible(true);
-				try {					
-					result.append(m.getName())
-					.append(" (Type method): ");
-					Object ob = m.invoke(this.o, null);
-					
-					if(m.getReturnType().isArray()){
-						result.append("[");
-						int length = Array.getLength(ob);
-						for (int i = 0; i < length; i++)
-						{
-						    result.append(Array.get(ob, i)).append(", ");				    
-						}
-						result.append("]");
-					} else {
-						result.append(ob);
-					}
-					
-					result.append("\n");
-					
-				} catch (InvocationTargetException e) {
-					e.printStackTrace();
-				}
-			}
-		}
+    result.append(cut.getName());
+    result.append(":\n");
 
-		return result.toString();
-	}	
+    Field[] fields = cut.getDeclaredFields();
+
+    try {
+      for (Field f : fields) {
+        RenderMe a = f.getAnnotation(edu.hm.renderer.RenderMe.class);
+        if (a != null) {
+          f.setAccessible(true);
+
+          String className = a.with();
+
+          if (!"".equals(className)) {
+
+            Class<?> tuc = Class.forName(a.with());
+            if (tuc != null) {
+              Method method = tuc.getDeclaredMethod("render", Field.class, Object.class);
+              if (method != null) {
+                result.append(method.invoke(tuc, f, this.elementToRender));
+              }
+            }
+          } else {
+            result.append(f.getName()).append(" (Type ")
+            .append((f.getType()).getName()).append("): ")
+                .append((f.get(this.elementToRender)).toString()).append("\n");
+          }
+
+        }
+      }
+
+      Method[] methods = cut.getDeclaredMethods();
+      for (Method m : methods) {
+        RenderMe rm = m.getAnnotation(edu.hm.renderer.RenderMe.class);
+        if (rm != null) {
+          m.setAccessible(true);
+          try {
+            result.append(m.getName()).append(" (Type method): ");
+            Object ob = m.invoke(this.elementToRender, (Object[]) null);
+
+            if (m.getReturnType().isArray()) {
+              result.append("[");
+              int length = Array.getLength(ob);
+              for (int i = 0; i < length; i++) {
+                result.append(Array.get(ob, i)).append(", ");
+              }
+              result.append("]");
+            } else {
+              result.append(ob);
+            }
+
+            result.append("\n");
+
+          } catch (InvocationTargetException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+    } catch (ClassNotFoundException
+        | NoSuchMethodException | SecurityException | InvocationTargetException
+        | IllegalAccessException | IllegalArgumentException e) {
+      e.printStackTrace();
+    }
+
+    return result.toString();
+  }
 }
